@@ -3,6 +3,8 @@ import cors from "cors"
 import http from "http"
 import { Server } from "socket.io"
 import authRoutes from "./routes/auth.routes"
+import { authenticate } from "./middlewares/auth.middleware"
+import boardRoutes from "../src/routes/board.routes"
 
 const app = express()
 const server = http.createServer(app)
@@ -16,9 +18,14 @@ const io = new Server(server, {
 app.use(cors())
 app.use(express.json())
 app.use("/api/auth",authRoutes)
+app.use("/api/boards",boardRoutes)
 
 app.get("/", (req, res) => {
   res.send("API is running fine")
+})
+
+app.get("/api/protected", authenticate, (req, res) => {
+  res.json({ msg: "You are authenticated" })
 })
 
 io.on("connection", (socket) => {
