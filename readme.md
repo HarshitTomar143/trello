@@ -27,7 +27,7 @@ Layered architecture with controllers, services, Prisma ORM, JWT authentication,
 ## 📊 Database Schema
 
 <p align="center">
-  <img src="./assets/db-schema.png" alt="Database Schema" width="800"/>
+  <img src="./assets/db_schema.png" alt="Database Schema" width="800"/>
 </p>
 
 Relational structure representing Board → List → Task hierarchy with ownership and constraints.
