@@ -23,4 +23,33 @@ model Board {
   createdAt DateTime @default(now())
 
   owner     User     @relation(fields: [ownerId], references: [id])
+  lists     List[]
 }
+
+model List {
+  id        String   @id @default(uuid())
+  title     String
+  position  Int
+  boardId   String
+
+  board     Board    @relation(fields: [boardId], references: [id])
+  tasks     Task[]
+
+  @@index([boardId])
+}
+
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  position    Int
+  listId      String
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+
+  list        List     @relation(fields: [listId], references: [id])
+
+  @@index([listId])
+}
+
