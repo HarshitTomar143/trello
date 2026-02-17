@@ -130,7 +130,7 @@ export const moveTaskWithinList = async (
       return res.status(400).json({ message: "newPosition is required" });
     }
 
-    // 1️⃣ Fetch task with list and board
+   
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -157,7 +157,7 @@ export const moveTaskWithinList = async (
       return res.status(404).json({ message: "Task not found" });
     }
 
-    // 2️⃣ Ownership validation
+    
     if (task.list.board.ownerId !== userId) {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -170,7 +170,7 @@ export const moveTaskWithinList = async (
 
     await prisma.$transaction(async (tx) => {
       if (newPosition > oldPosition) {
-        // Moving down
+       
         await tx.task.updateMany({
           where: {
             listId: task.listId,
@@ -184,7 +184,7 @@ export const moveTaskWithinList = async (
           },
         });
       } else {
-        // Moving up
+       
         await tx.task.updateMany({
           where: {
             listId: task.listId,
@@ -236,7 +236,7 @@ export const moveTaskAcrossLists = async (
       });
     }
 
-    // 1️⃣ Fetch task with board ownership
+   
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -271,7 +271,7 @@ export const moveTaskAcrossLists = async (
     const oldPosition = task.position;
 
     await prisma.$transaction(async (tx) => {
-      // 2️⃣ Fix old list (remove gap)
+    
       await tx.task.updateMany({
         where: {
           listId: oldListId,
@@ -284,7 +284,7 @@ export const moveTaskAcrossLists = async (
         },
       });
 
-      // 3️⃣ Shift new list tasks
+      
       await tx.task.updateMany({
         where: {
           listId: newListId,
@@ -297,7 +297,7 @@ export const moveTaskAcrossLists = async (
         },
       });
 
-      // 4️⃣ Update task
+      
       await tx.task.update({
         where: { id: taskId },
         data: {
@@ -331,7 +331,6 @@ export const deleteTask = async (
     const { taskId } = req.params;
     const userId = (req as any).userId;
 
-    // 1️⃣ Fetch task with ownership check
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -366,12 +365,12 @@ export const deleteTask = async (
     const deletedPosition = task.position;
 
     await prisma.$transaction(async (tx) => {
-      // 2️⃣ Delete the task
+      
       await tx.task.delete({
         where: { id: taskId },
       });
 
-      // 3️⃣ Fix positions (remove gap)
+      
       await tx.task.updateMany({
         where: {
           listId,
@@ -411,7 +410,7 @@ export const assignUserToTask = async (
       return res.status(400).json({ message: "userId is required" });
     }
 
-    // 1️⃣ Validate task + ownership
+    
     const task = await prisma.task.findUnique({
       where: { id: taskId },
       include: {
@@ -440,7 +439,7 @@ export const assignUserToTask = async (
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    // 2️⃣ Validate user exists
+    
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
@@ -449,7 +448,7 @@ export const assignUserToTask = async (
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 3️⃣ Create assignment
+    
     const assignment = await prisma.taskAssignment.create({
       data: {
         taskId,
@@ -457,7 +456,7 @@ export const assignUserToTask = async (
       },
     });
 
-    // 🔥 Emit real-time event
+    
     const io = getIO();
     io.to(task.list.boardId).emit("activity_created", activity);
     io.to(task.list.boardId).emit("task_assigned", {
@@ -551,7 +550,6 @@ export const getTasksPaginated = async (
 
     const skip = (pageNumber - 1) * limitNumber;
 
-    // Optional list filter
     const whereCondition: any = {
       ...(listId && { listId }),
       ...(search && {
