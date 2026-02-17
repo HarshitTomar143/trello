@@ -1,420 +1,170 @@
-🧠 Backend Architecture
-📌 Overview
+# 🧠 Backend Architecture
 
-The backend of the Real-Time Task Collaboration Platform is built using:
+## 📌 Overview
 
-Node.js
+The backend is built using:
 
-Express.js
+- Node.js
+- Express.js
+- TypeScript
+- Prisma ORM
+- PostgreSQL (Neon)
+- Socket.IO
+- JWT Authentication
+- bcrypt
 
-TypeScript
+It follows a layered, modular architecture with transaction safety and real-time synchronization.
 
-Prisma ORM
+---
 
-PostgreSQL (Neon)
+## 🏗 Architecture Principles
 
-Socket.IO
+- Layered request flow (Route → Controller → DB → Socket)
+- Stateless JWT authentication
+- Strict resource ownership validation
+- Transaction-safe mutations
+- Board-scoped real-time rooms
+- Modular folder structure
 
-JWT Authentication
+---
 
-bcrypt for password hashing
+## 📂 Folder Structure
 
-The architecture follows a layered, modular, and scalable design, ensuring:
-
-Clear separation of concerns
-
-Transaction-safe operations
-
-Real-time event-driven synchronization
-
-Strict ownership validation
-
-Production-ready structure
-
-🏗 Architectural Design Principles
-
-The backend is designed around the following core principles:
-
-Layered architecture
-
-Stateless authentication (JWT)
-
-Transaction safety for mutations
-
-Board-scoped access control
-
-Event-driven real-time updates
-
-Prisma singleton pattern
-
-Scalable folder structure
-
-📂 Folder Structure
 backend/
-│
 ├── prisma/
-│   ├── schema.prisma
-│   └── migrations/
-│
 ├── src/
-│   ├── index.ts
-│   │
-│   ├── config/
-│   │   └── prisma.ts
-│   │
-│   ├── controllers/
-│   │   ├── auth.controller.ts
-│   │   ├── board.controller.ts
-│   │   ├── list.controller.ts
-│   │   ├── task.controller.ts
-│   │
-│   ├── routes/
-│   │   ├── auth.routes.ts
-│   │   ├── board.routes.ts
-│   │   ├── list.routes.ts
-│   │   ├── task.routes.ts
-│   │
-│   ├── middlewares/
-│   │   └── auth.middleware.ts
-│   │
-│   ├── services/
-│   │   └── activity.service.ts
-│   │
-│   └── socket/
-│       └── io.ts
-│
-├── .env
-├── package.json
-├── tsconfig.json
+│ ├── controllers/
+│ ├── routes/
+│ ├── middlewares/
+│ ├── services/
+│ ├── socket/
+│ └── index.ts
 
 
-This structure enforces separation between:
+Separation between:
 
-Routing
+- Routing
+- Business logic
+- Database layer
+- Real-time layer
+- Authentication
 
-Business logic
+---
 
-Database access
+## 🔐 Authentication
 
-Real-time layer
+- Passwords hashed using bcrypt
+- JWT generated on login
+- Token sent via `Authorization: Bearer`
+- Middleware verifies token and attaches `userId`
 
-Authentication
+Stateless authentication enables horizontal scalability.
 
-Services
+---
 
-🏛 Layered Architecture
+## 🧱 Ownership & Security
 
-The backend follows a layered request flow:
+Before every mutation:
 
-Route
-  ↓
-Controller
-  ↓
-Service (optional)
-  ↓
-Prisma ORM
-  ↓
-PostgreSQL
-  ↓
-Socket Emit
+1. Resource is fetched  
+2. Ownership is validated  
+3. Operation executed  
+4. Event emitted  
 
-🔐 Authentication Layer
-JWT-Based Authentication
+Ensures strict board-level isolation and multi-user security.
 
-Users register and login.
+---
 
-Passwords are hashed using bcrypt.
+## 🗄 Database Layer
 
-A JWT token is generated upon login.
+Prisma ORM is used for:
 
-Token is sent via Authorization: Bearer <token>.
+- Type-safe queries  
+- Relationship handling  
+- Schema migrations  
+- Transactions  
 
-Middleware
+### Transaction Safety
 
-auth.middleware.ts:
+Used for:
 
-Verifies JWT
+- Task reordering  
+- Cross-list moves  
+- Position recalculation  
 
-Extracts user ID
+Ensures:
 
-Attaches req.userId
+- No duplicate positions  
+- No ordering gaps  
+- Consistent concurrent updates  
 
-Protects all private routes
+---
 
-Key Design Benefit
+## ⚡ Real-Time Integration
 
-Stateless authentication enables horizontal scaling without session storage.
+### Secure Socket Authentication
 
-🧱 Resource Ownership Model
+- JWT verified during handshake  
+- `userId` attached to socket  
 
-Security is enforced at every mutation.
-
-For example:
-
-Fetch resource
-↓
-Validate ownership (board.ownerId === userId)
-↓
-Execute operation
-↓
-Emit real-time event
-
-
-This ensures:
-
-No cross-user access
-
-Strict board-level isolation
-
-Multi-user security compliance
-
-🗄 Database Interaction Layer
-Prisma ORM
-
-Prisma is used for:
-
-Type-safe database queries
-
-Transaction handling
-
-Relationship management
-
-Schema migrations
-
-Prisma Singleton Pattern
-
-A single Prisma client instance is used to:
-
-Prevent connection leaks
-
-Ensure efficient pooling
-
-Improve production stability
-
-🔁 Transaction-Safe Mutations
-
-Operations that affect ordering use:
-
-prisma.$transaction()
-
-
-Examples:
-
-Move task within list
-
-Move task across lists
-
-Delete task (position recalculation)
-
-Why Transactions?
-
-They ensure:
-
-No duplicate positions
-
-No gaps in ordering
-
-Consistent state across concurrent requests
-
-⚡ Real-Time Architecture
-
-The backend integrates Socket.IO for real-time collaboration.
-
-🔐 Secure WebSocket Authentication
-
-During socket handshake:
-
-JWT token is verified
-
-userId is attached to socket
-
-Unauthorized users are rejected
-
-🏠 Board-Scoped Rooms
-
-Each board acts as a real-time room:
+### Board-Scoped Rooms
 
 socket.join(boardId)
 
 
-This ensures:
+Events are isolated per board.
 
-Events are isolated per board
+### Emitted Events
 
-No cross-board event leakage
+- task_created  
+- task_deleted  
+- task_moved  
+- task_moved_across  
+- task_assigned  
+- activity_created  
 
-Scalable multi-board handling
+Ensures instant multi-user synchronization.
 
-📡 Event-Driven Synchronization
+---
 
-After any mutation:
+## 📜 REST API Structure
 
-Database update
+### Authentication
+- POST `/api/auth/register`
+- POST `/api/auth/login`
 
-Activity logged
+### Boards
+- GET `/api/boards`
+- POST `/api/boards`
 
-Socket event emitted
+### Lists
+- GET `/api/lists/:boardId`
+- POST `/api/lists`
 
-Example:
+### Tasks
+- POST `/api/tasks`
+- DELETE `/api/tasks/:taskId`
+- PATCH `/api/tasks/:taskId/move`
+- PATCH `/api/tasks/:taskId/move-across`
 
-Task Created
-↓
-DB Insert
-↓
-Activity Logged
-↓
-Emit "task_created"
-↓
-All clients update state
+---
 
-Real-Time Events Emitted
+## 📈 Scalability Readiness
 
-task_created
+- Stateless JWT design  
+- Indexed database fields  
+- Transaction-safe ordering  
+- Redis adapter ready for socket scaling  
 
-task_deleted
+---
 
-task_moved
-
-task_moved_across
-
-task_assigned
-
-task_unassigned
-
-activity_created
-
-This architecture ensures instant UI updates across all active clients.
-
-📜 Activity Logging Service
-
-A centralized service:
-
-services/activity.service.ts
-
-
-Automatically logs:
-
-Task creation
-
-Task movement
-
-Task deletion
-
-Assignment changes
-
-Activity entries include:
-
-Board ID
-
-User ID
-
-Action type
-
-Metadata (JSON)
-
-This supports:
-
-Audit trail
-
-Future analytics
-
-Activity sidebar implementation
-
-🌐 REST API Design
-
-The backend follows RESTful conventions:
-
-Authentication
-POST /api/auth/register
-POST /api/auth/login
-
-Boards
-GET /api/boards
-POST /api/boards
-GET /api/boards/:boardId/activities
-
-Lists
-GET /api/lists/:boardId
-POST /api/lists
-
-Tasks
-POST /api/tasks
-DELETE /api/tasks/:taskId
-PATCH /api/tasks/:taskId/move
-PATCH /api/tasks/:taskId/move-across
-GET /api/tasks?search=&page=&limit=
-
-Assignments
-POST /api/tasks/:taskId/assign
-DELETE /api/tasks/:taskId/unassign/:userId
-
-📈 Scalability Considerations
-1️⃣ Stateless Design
-
-JWT-based authentication
-
-No server sessions
-
-Horizontal scaling ready
-
-2️⃣ Socket Scaling
-
-To scale in production:
-
-Use Redis adapter for Socket.IO
-
-Enable sticky sessions
-
-Run multiple Node instances behind load balancer
-
-3️⃣ Database Optimization
-
-Indexed fields:
-
-boardId
-
-listId
-
-userId
-
-createdAt
-
-Supports:
-
-Fast filtering
-
-Pagination
-
-Search
-
-4️⃣ Production Improvements (Future)
-
-Rate limiting
-
-Caching layer (Redis)
-
-Queue-based activity logging
-
-Cursor-based pagination
-
-Read replicas
-
-🏆 Architectural Strength Summary
+## 🚀 Summary
 
 The backend demonstrates:
 
-Layered modular architecture
-
-Strict ownership validation
-
-Transaction-safe ordering logic
-
-Event-driven real-time synchronization
-
-Secure JWT-based authentication
-
-Scalable database integration
-
-Production-structured folder organization
-
-This backend is structured for real-time collaborative SaaS-level applications.
+- Layered modular architecture  
+- Secure JWT authentication  
+- Strict ownership validation  
+- Transaction-safe ordering logic  
+- Event-driven real-time updates  
+- Production-ready folder structure

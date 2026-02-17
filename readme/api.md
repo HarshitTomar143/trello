@@ -1,187 +1,76 @@
-📄 API Contract Design
-📌 Overview
+# 📄 API Contract Design
 
-The backend follows a RESTful API design with consistent request structure, response formatting, proper HTTP status codes, and resource-based routing.
+## 📌 Overview
+
+The backend follows a RESTful, resource-oriented API design.
 
 All protected routes require:
 
 Authorization: Bearer <JWT_TOKEN>
 
+The API is:
 
-The API is designed to be:
+- Stateless (JWT-based)
+- Predictable
+- Secure
+- Pagination-ready
+- Real-time integrated (task-level)
 
-Stateless
+---
 
-Predictable
+## 🔐 Authentication
 
-Resource-oriented
+### Register
+POST `/api/auth/register`
 
-Secure
-
-Scalable
-
-🔐 Authentication APIs
-Register
-
-Endpoint
-
-POST /api/auth/register
-
-
-Request Body
-
+Request:
+```json
 {
   "name": "string",
   "email": "string",
   "password": "string"
 }
+Response:
 
-
-Response
-
-{
-  "token": "JWT_TOKEN"
-}
-
+{ "token": "JWT_TOKEN" }
 Login
-
-Endpoint
-
 POST /api/auth/login
 
+Response:
 
-Request Body
-
-{
-  "email": "string",
-  "password": "string"
-}
-
-
-Response
-
-{
-  "token": "JWT_TOKEN"
-}
-
-📋 Boards API
-Get All Boards
+{ "token": "JWT_TOKEN" }
+📋 Boards
 GET /api/boards
 
-
-Response
-
-[
-  {
-    "id": "string",
-    "title": "string",
-    "ownerId": "string",
-    "createdAt": "timestamp"
-  }
-]
-
-Create Board
 POST /api/boards
 
-
-Request Body
-
-{
-  "title": "string"
-}
-
-
-Response
-
-{
-  "id": "string",
-  "title": "string",
-  "ownerId": "string",
-  "createdAt": "timestamp"
-}
-
-Get Board Activities
 GET /api/boards/:boardId/activities
 
+Returns board metadata and activity logs.
 
-Response
-
-[
-  {
-    "id": "string",
-    "boardId": "string",
-    "userId": "string",
-    "action": "string",
-    "metadata": {},
-    "createdAt": "timestamp"
-  }
-]
-
-🗂 Lists API
-Get Lists by Board
+🗂 Lists
 GET /api/lists/:boardId
 
-
-Response
-
-[
-  {
-    "id": "string",
-    "title": "string",
-    "position": number,
-    "boardId": "string"
-  }
-]
-
-Create List
 POST /api/lists
 
+Each list includes:
 
-Request Body
+id
 
-{
-  "title": "string",
-  "boardId": "string"
-}
+title
 
+position
 
-Response
+boardId
 
-{
-  "id": "string",
-  "title": "string",
-  "position": number,
-  "boardId": "string"
-}
-
-✅ Tasks API
-Get Tasks (Paginated & Searchable)
+✅ Tasks
+Get Tasks (Paginated)
 GET /api/tasks?search=&page=&limit=&listId=
 
-
-Query Parameters
-
-search (optional)
-
-page (default: 1)
-
-limit (default: 10)
-
-listId (optional)
-
-Response
+Response:
 
 {
-  "data": [
-    {
-      "id": "string",
-      "title": "string",
-      "description": "string",
-      "position": number,
-      "listId": "string",
-      "createdAt": "timestamp"
-    }
-  ],
+  "data": [...],
   "pagination": {
     "total": number,
     "page": number,
@@ -189,108 +78,28 @@ Response
     "totalPages": number
   }
 }
-
 Create Task
 POST /api/tasks
-
-
-Request Body
-
-{
-  "title": "string",
-  "description": "string",
-  "listId": "string"
-}
-
-
-Response
-
-{
-  "id": "string",
-  "title": "string",
-  "description": "string",
-  "position": number,
-  "listId": "string",
-  "createdAt": "timestamp"
-}
 
 Delete Task
 DELETE /api/tasks/:taskId
 
-
-Response
-
-{
-  "message": "Task deleted successfully"
-}
-
-Move Task Within List
+Move Task (Same List)
 PATCH /api/tasks/:taskId/move
 
-
-Request Body
-
-{
-  "newPosition": number
-}
-
-
-Response
-
-{
-  "message": "Task moved successfully"
-}
-
-Move Task Across Lists
+Move Task (Across Lists)
 PATCH /api/tasks/:taskId/move-across
 
+All move operations are transaction-safe.
 
-Request Body
-
-{
-  "newListId": "string",
-  "newPosition": number
-}
-
-
-Response
-
-{
-  "message": "Task moved across lists"
-}
-
-👥 Task Assignment API
-Assign User to Task
+👥 Task Assignment
 POST /api/tasks/:taskId/assign
 
-
-Request Body
-
-{
-  "userId": "string"
-}
-
-
-Response
-
-{
-  "id": "string",
-  "taskId": "string",
-  "userId": "string"
-}
-
-Unassign User from Task
 DELETE /api/tasks/:taskId/unassign/:userId
 
+Supports multi-user collaboration.
 
-Response
-
-{
-  "message": "User unassigned"
-}
-
-📡 Real-Time Events (Task-Level Only)
-
+📡 Real-Time Events
 Socket events emitted:
 
 task_created
@@ -307,34 +116,30 @@ task_unassigned
 
 activity_created
 
+Real-time updates are implemented at the task level.
+
 🧠 Design Principles
+Resource-based routing
 
-Resource-oriented URLs
-
-Proper HTTP methods (GET, POST, PATCH, DELETE)
+Proper HTTP methods
 
 Consistent JSON responses
 
-Pagination support
-
-Search capability
+Pagination & search support
 
 JWT-protected private routes
 
-Clear separation between REST and real-time events
+Clear separation of REST & real-time layers
 
-🏆 Summary
-
+🚀 Summary
 The API contract is:
 
 RESTful
 
-Predictable
-
 Secure
 
-Scalable
+Transaction-safe
 
-Real-time enabled for task operations
+Real-time enabled
 
-Structured for future extension
+Scalable for future extension

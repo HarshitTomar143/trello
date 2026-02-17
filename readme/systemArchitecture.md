@@ -1,261 +1,151 @@
-🏗 System Architecture Overview
-📌 Overview
+# 🏗 System Architecture Overview
 
-The Real-Time Task Collaboration Platform follows a full-stack, event-driven architecture combining:
+## 📌 Overview
 
-Next.js (Frontend)
+The platform follows a full-stack, event-driven architecture using:
 
-Node.js + Express (Backend)
+- Next.js (Frontend)
+- Node.js + Express (Backend)
+- PostgreSQL (Prisma ORM)
+- Socket.IO (Real-Time)
+- JWT Authentication
 
-PostgreSQL (Database via Prisma ORM)
+It supports secure multi-user collaboration, transaction-safe ordering, and real-time synchronization.
 
-Socket.IO (Real-Time Layer)
+---
 
-JWT Authentication
+## 🌐 High-Level Flow
 
-The system is designed to support:
+Client (Next.js)  
+↓  
+REST API (Express)  
+↓  
+Prisma ORM  
+↓  
+PostgreSQL  
+↓  
+Socket.IO Emit  
+↓  
+Connected Clients (Board Room)
 
-Secure multi-user access
+REST handles mutations.  
+Socket.IO synchronizes changes in real time.
 
-Transaction-safe task ordering
+---
 
-Real-time task synchronization
+## 🖥 Frontend Layer
 
-Scalable stateless backend deployment
+Responsibilities:
 
-🌐 High-Level Architecture Flow
-Client (Next.js Frontend)
-        ↓
-REST API (Express Server)
-        ↓
-Prisma ORM
-        ↓
-PostgreSQL Database
-        ↓
-Socket.IO Event Emit
-        ↓
-All Connected Clients (Board Room)
+- UI rendering
+- Drag-and-drop
+- Optimistic updates
+- API communication
+- Real-time event listening
 
+Characteristics:
 
-The REST API handles all state mutations.
-The Socket layer synchronizes those changes in real time.
+- Board-scoped state
+- Event-driven updates
+- JWT-protected routes
 
-🖥 Frontend Layer
-Responsibilities
+---
 
-UI rendering
+## ⚙ Backend Layer
 
-Drag-and-drop interaction
+Responsibilities:
 
-Optimistic updates
+- Authentication & authorization
+- Ownership validation
+- Transaction-safe mutations
+- Activity logging
+- Real-time event emission
 
-REST API communication
-
-Real-time event listening
-
-Key Technologies
-
-Next.js (App Router)
-
-TypeScript
-
-TailwindCSS
-
-Axios
-
-dnd-kit
-
-Socket.IO Client
-
-Design Characteristics
-
-Board-scoped state
-
-Optimistic UI updates for drag & delete
-
-Event-driven task synchronization
-
-JWT-based protected routes
-
-⚙ Backend Layer
-Responsibilities
-
-Authentication & authorization
-
-Ownership validation
-
-Transaction-safe mutations
-
-Activity logging
-
-Real-time event emission
-
-Architecture Style
-
-Layered modular structure:
+Architecture:
 
 Routes → Controllers → Services → Prisma → Database
 
-Security Model
+Security:
 
-JWT-based authentication
+- JWT-based authentication
+- Middleware-protected routes
+- Secure socket handshake
+- Board-level ownership validation
 
-Ownership validation at board level
+---
 
-Protected routes via middleware
+## 🗄 Database Layer
 
-Secure WebSocket handshake
+Relational model:
 
-🗄 Database Layer
-Database: PostgreSQL
+User → Board → List → Task  
+                     ↓  
+             TaskAssignment  
+                     ↓  
+                 Activity  
 
-Managed via Prisma ORM.
+Key features:
 
-Core Relationships
-User → Board → List → Task
-                ↓
-         TaskAssignment
-                ↓
-            Activity
+- Indexed foreign keys
+- Position-based ordering
+- Transaction-safe updates
+- JSON metadata support
 
-Key Characteristics
+---
 
-Relational integrity
+## 📡 Real-Time Layer
 
-Indexed foreign keys
+- JWT-verified socket connection
+- Board-scoped rooms (`socket.join(boardId)`)
+- Event-driven synchronization
 
-Position-based ordering
+Real-time implemented for:
 
-Transaction-safe updates
+- Task creation
+- Task deletion
+- Task movement
+- Task assignment
+- Activity updates
 
-JSON metadata support (Activity)
+Boards and lists use REST updates.
 
-📡 Real-Time Layer
-Socket.IO Architecture
+---
 
-JWT-verified handshake
+## 🔄 Example Flow (Drag & Drop)
 
-Board-scoped rooms
+1. UI performs optimistic update  
+2. PATCH request sent  
+3. Backend validates ownership  
+4. DB updated inside transaction  
+5. `task_moved` emitted  
+6. Other clients update  
 
-Event-driven updates
+Ensures consistency and multi-user sync.
 
-Each board acts as a real-time channel:
+---
 
-socket.join(boardId)
+## 📈 Scalability Model
 
-Real-Time Scope
+Supports scaling through:
 
-Currently implemented for:
+- Stateless JWT authentication
+- Modular backend structure
+- Indexed relational schema
+- Board-scoped socket rooms
+- Redis adapter readiness
+- Load balancer compatibility
 
-Task creation
+---
 
-Task deletion
+## 🏆 Summary
 
-Task movement
+The architecture demonstrates:
 
-Task assignment
+- Full-stack integration
+- Real-time collaboration
+- Secure multi-user isolation
+- Transactional consistency
+- Modular backend structure
+- Scalable real-time design
 
-Activity updates
-
-Boards and lists use REST-based updates.
-
-🔄 End-to-End Flow Example
-Example: Task Drag & Drop
-
-User drags task in UI.
-
-Frontend performs optimistic reordering.
-
-Frontend sends PATCH request.
-
-Backend validates ownership.
-
-Database updates positions inside transaction.
-
-Backend emits task_moved.
-
-Other clients update automatically.
-
-This ensures:
-
-No race conditions
-
-No duplicate positions
-
-Instant multi-user synchronization
-
-🔐 Security Architecture
-Authentication
-
-JWT-based stateless system
-
-Token required for all protected endpoints
-
-Token required for socket connection
-
-Authorization
-
-Every mutation follows:
-
-Fetch resource
-↓
-Validate ownership
-↓
-Execute operation
-↓
-Emit event
-
-
-Prevents cross-board or cross-user access.
-
-📈 Scalability Model
-
-The system supports horizontal scaling through:
-
-Stateless JWT authentication
-
-Prisma connection pooling
-
-Indexed relational schema
-
-Board-scoped socket rooms
-
-Redis adapter support for multi-instance socket scaling
-
-Load balancer compatibility
-
-🧠 Design Philosophy
-
-The system emphasizes:
-
-Clear separation of concerns
-
-Transaction safety
-
-Event-driven collaboration
-
-Modular architecture
-
-Scalable real-time infrastructure
-
-Predictable REST API design
-
-🏆 Architectural Strength Summary
-
-This architecture demonstrates:
-
-Full-stack integration
-
-Real-time collaboration
-
-Secure multi-user isolation
-
-Transactional consistency
-
-Clean modular backend structure
-
-Scalable socket design
-
-Production-ready system thinking
-
-The system is suitable for real-time collaborative SaaS applications and can scale with minimal architectural changes.
+Suitable for real-time collaborative SaaS systems.

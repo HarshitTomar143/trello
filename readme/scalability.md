@@ -1,174 +1,100 @@
-📈 Scalability Considerations
-📌 Overview
+# 📈 Scalability Considerations
 
-The system is designed with scalability in mind across three main layers:
+## 📌 Overview
 
-API layer
+The system is designed to scale across three layers:
 
-Real-time layer
+- API layer
+- Real-time layer
+- Database layer
 
-Database layer
+It supports horizontal scaling with minimal architectural changes.
 
-The architecture supports horizontal scaling with minimal structural changes.
+---
 
-🖥 API Layer Scalability
-1️⃣ Stateless Authentication
+## 🖥 API Layer
 
-JWT-based authentication
+### Stateless Authentication
+- JWT-based
+- No server-side sessions
+- No in-memory user state
 
-No server-side sessions
+Allows multiple backend instances behind a load balancer.
 
-No in-memory user state
-
-Benefit:
-Multiple backend instances can run behind a load balancer without session synchronization.
-
-2️⃣ Layered Architecture
-
+### Modular Structure
 Clear separation between:
+- Routes
+- Controllers
+- Services
+- Database layer
 
-Routes
+Enables easier scaling and future microservice extraction.
 
-Controllers
+---
 
-Services
+## ⚡ Real-Time Layer
 
-Database layer
+Currently runs on a single instance.
 
-This allows:
+To scale:
 
-Independent refactoring
+- Use Redis adapter for Socket.IO
+- Enable sticky sessions behind load balancer
+- Emit events only to `boardId` rooms
 
-Easier microservice extraction in future
+This limits unnecessary broadcasts and reduces overhead.
 
-Clean horizontal scaling
+---
 
-⚡ Real-Time Layer Scalability
+## 🗄 Database Layer
 
-Currently, Socket.IO runs on a single server instance.
+### Indexed Fields
+- boardId
+- listId
+- userId
+- createdAt
 
-To scale horizontally:
+Supports fast filtering, pagination, and search.
 
-1️⃣ Redis Adapter
+### Transaction Safety
+- Uses `prisma.$transaction()` for reordering logic
+- Prevents race conditions under concurrency
 
-Use Socket.IO Redis adapter to:
+### Connection Management
+- Prisma singleton pattern
+- Production-grade connection pooling
 
-Synchronize events across multiple server instances
+---
 
-Maintain consistent board rooms
+## 📦 Application Optimizations
 
-Broadcast events cluster-wide
+- Pagination support (`page`, `limit`, `search`)
+- Board-scoped data loading
+- No unnecessary global state
 
-2️⃣ Sticky Sessions
+---
 
-When deployed behind a load balancer:
+## 🚀 Future Enhancements
 
-Enable sticky sessions for WebSocket connections
+If scaling further:
 
-Prevent socket reconnection issues
+- Redis caching layer
+- PostgreSQL read replicas
+- Cursor-based pagination
+- Background job queues
+- Separate REST and Socket services
 
-3️⃣ Event-Scoped Emission
+---
 
-Events are emitted only to:
+## 🏆 Summary
 
-io.to(boardId)
+The system scales through:
 
+- Stateless JWT authentication
+- Modular backend design
+- Board-scoped real-time rooms
+- Indexed relational schema
+- Transaction-safe mutations
+- Optimized data fetching
 
-This limits:
-
-Broadcast scope
-
-Unnecessary network traffic
-
-Memory overhead
-
-🗄 Database Scalability
-1️⃣ Indexed Fields
-
-Critical indexed columns:
-
-boardId
-
-listId
-
-userId
-
-createdAt
-
-This ensures:
-
-Fast filtering
-
-Efficient pagination
-
-Scalable search queries
-
-2️⃣ Transaction Safety
-
-Reordering logic uses:
-
-prisma.$transaction()
-
-
-Ensures consistency under concurrent operations and prevents race conditions.
-
-3️⃣ Connection Management
-
-Prisma singleton pattern prevents connection leaks.
-
-Supports production-grade connection pooling.
-
-📦 Application-Level Optimizations
-1️⃣ Pagination
-
-Tasks endpoint supports:
-
-page
-
-limit
-
-search
-
-Prevents loading large datasets into memory.
-
-2️⃣ Board-Scoped State
-
-Frontend loads only:
-
-One board at a time
-
-Its lists and tasks
-
-This prevents global state overload.
-
-🚀 Future Scaling Enhancements
-
-If user base grows significantly:
-
-Introduce Redis caching layer
-
-Add read replicas for PostgreSQL
-
-Implement cursor-based pagination
-
-Introduce background job queue for activity logging
-
-Split REST and Socket servers
-
-🏆 Summary
-
-The system supports scalability through:
-
-Stateless JWT authentication
-
-Modular backend structure
-
-Board-scoped real-time rooms
-
-Indexed relational schema
-
-Transaction-safe mutations
-
-Optimized data fetching
-
-The architecture can scale horizontally with minimal redesign.
+The architecture is ready for horizontal scaling with minimal redesign.

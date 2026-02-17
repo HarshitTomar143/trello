@@ -1,158 +1,122 @@
-📡 Real-Time Sync Strategy
-📌 Overview
+# 📡 Real-Time Sync Strategy
 
-The application uses Socket.IO to provide real-time synchronization across multiple clients.
+## 📌 Overview
 
-Currently, real-time communication is implemented only for task-related operations.
-Boards and lists use standard REST-based updates.
+The application uses Socket.IO for real-time synchronization.
 
-🏗 Architecture Model
+Real-time is implemented for **task-level operations only**.  
+Boards and lists use standard REST updates.
 
-The real-time system follows a board-scoped room strategy:
+---
 
-Client connects with JWT
-↓
-Socket authentication
-↓
-Client joins board room
-↓
-Server emits task events to that room
-↓
-All connected clients update UI
+## 🏗 Architecture Model
 
+Real-time flow:
 
-Each board acts as an isolated real-time channel.
+Client connects with JWT  
+↓  
+Server verifies token  
+↓  
+Client joins board room  
+↓  
+Server emits task events  
+↓  
+All connected clients update UI  
 
-🔐 Secure Socket Authentication
+Each board acts as an isolated real-time room.
 
-During connection:
+---
 
-Client sends JWT token in handshake
+## 🔐 Secure Socket Authentication
 
-Server verifies token
+- JWT sent during handshake  
+- Server verifies token  
+- `userId` attached to socket  
+- Only authenticated users can join rooms  
 
-userId is attached to the socket instance
+---
 
-Only authenticated users can connect and join board rooms.
+## 🏠 Board-Scoped Rooms
 
-🏠 Board-Scoped Rooms
-
-When a board page loads:
+When a board loads:
 
 socket.emit("join_board", boardId)
 
 
-The server validates ownership and executes:
+Server executes:
 
 socket.join(boardId)
 
 
-This ensures:
+Ensures:
 
-Events are isolated per board
+- Board-level isolation  
+- No cross-board event leakage  
+- Scalable room-based broadcasting  
 
-No cross-board data leakage
+---
 
-Scalable room-based broadcasting
+## 🔄 Task-Level Events
 
-🔄 Task-Level Real-Time Events
+Socket events emitted:
 
-Real-time synchronization is implemented only for tasks.
+- task_created  
+- task_deleted  
+- task_moved  
+- task_moved_across  
+- task_assigned  
+- task_unassigned  
+- activity_created  
 
-The following task operations emit socket events:
+Boards and lists rely on REST updates.
 
-task_created
+---
 
-task_deleted
+## 🔁 Example Flow
 
-task_moved
+### Task Creation
 
-task_moved_across
+1. Client sends REST request  
+2. Server updates database  
+3. Activity logged  
+4. Event emitted to board room  
+5. All clients update state  
 
-task_assigned
+### Drag & Drop
 
-task_unassigned
+- Active client uses optimistic update  
+- Server updates DB transaction-safe  
+- Event emitted to other clients  
 
-activity_created
+---
 
-Boards and lists currently rely on REST updates only.
+## 🧠 Design Characteristics
 
-🔁 Event Flow Example
-Task Creation
-Client sends POST /api/tasks
-↓
-Server creates task in database
-↓
-Activity is logged
-↓
-Server emits "task_created" to board room
-↓
-All clients update task state
+- Event-driven architecture  
+- Board-scoped isolation  
+- JWT-secured handshake  
+- Optimistic UI updates  
+- Server-authoritative database  
+- No polling  
 
-Task Reordering (Drag & Drop)
-Client performs optimistic UI update
-↓
-Client sends PATCH request
-↓
-Server updates task position (transaction-safe)
-↓
-Server emits "task_moved"
-↓
-Other clients update state
+---
 
+## 📈 Scalability
 
-The active client uses optimistic updates for smoother UX, while other clients synchronize via socket events.
+To scale real-time:
 
-⚡ Why Real-Time Is Limited to Tasks
+- Use Redis adapter for multi-instance Socket.IO  
+- Enable sticky sessions behind load balancer  
+- Use managed infrastructure  
 
-Real-time synchronization is implemented for tasks because:
+---
 
-Tasks are the most frequently mutated entity
-
-Drag-and-drop requires instant multi-client consistency
-
-Task assignments impact collaboration directly
-
-Boards and lists are less frequently modified and currently use REST-based refresh.
-
-This keeps the system efficient and avoids unnecessary socket traffic.
-
-🧠 Design Characteristics
-
-Event-driven architecture
-
-Board-scoped room isolation
-
-JWT-secured socket handshake
-
-Optimistic UI on active client
-
-Server-authoritative database updates
-
-No polling used
-
-📈 Scalability Considerations
-
-To scale real-time infrastructure:
-
-Use Redis adapter for multi-instance socket scaling
-
-Deploy behind load balancer with sticky sessions
-
-Separate REST and WebSocket services if needed
-
-🏆 Summary
+## 🏆 Summary
 
 The real-time system:
 
-Uses Socket.IO with JWT authentication
-
-Isolates communication per board
-
-Synchronizes task-level changes instantly
-
-Maintains transactional database consistency
-
-Avoids overusing real-time for low-frequency entities
-
-This design ensures efficient, secure, and scalable real-time collaboration.
+- Uses Socket.IO with JWT authentication  
+- Isolates communication per board  
+- Synchronizes task updates instantly  
+- Maintains transactional consistency  
+- Avoids unnecessary real-time overhead  

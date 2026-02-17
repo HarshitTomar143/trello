@@ -1,175 +1,113 @@
-📊 Database Schema Diagram Explanation
-📌 Overview
+# 📊 Database Schema
 
-The database is designed using a relational model with PostgreSQL and Prisma ORM.
-It follows a hierarchical structure:
+## 📌 Overview
+
+The database is built using PostgreSQL with Prisma ORM.
+
+It follows a hierarchical relational structure:
 
 User → Board → List → Task
 
+Additionally supports:
 
-Additionally, it supports:
+- Many-to-many task assignments
+- Board-level activity logging
+- Ordered positioning of lists and tasks
 
-Many-to-many task assignments
+---
 
-Activity logging per board
+## 🧱 Core Entities
 
-🧱 Core Entities
-1️⃣ User
-
-Represents an authenticated platform user.
-
-Fields:
-
-id (Primary Key)
-
-name
-
-email (Unique)
-
-password
-
-createdAt
+### 👤 User
+- id (PK)
+- name
+- email (unique)
+- password
+- createdAt
 
 Relationships:
+- One user → many boards
+- One user → many task assignments
+- One user → many activities
 
-One User → Many Boards
+---
 
-One User → Many TaskAssignments
-
-One User → Many Activities
-
-2️⃣ Board
-
-Represents a workspace owned by a user.
-
-Fields:
-
-id (Primary Key)
-
-title
-
-ownerId (Foreign Key → User.id)
-
-createdAt
+### 📋 Board
+- id (PK)
+- title
+- ownerId (FK → User.id)
+- createdAt
 
 Relationships:
+- One board → many lists
+- One board → many activities
 
-One Board → Many Lists
+---
 
-One Board → Many Activities
-
-Owned by one User
-
-3️⃣ List
-
-Represents a column inside a board.
-
-Fields:
-
-id (Primary Key)
-
-title
-
-position (Used for ordering)
-
-boardId (Foreign Key → Board.id)
+### 🗂 List
+- id (PK)
+- title
+- position (ordering)
+- boardId (FK → Board.id)
 
 Relationships:
+- One list → many tasks
 
-One List → Many Tasks
+---
 
-Belongs to one Board
-
-4️⃣ Task
-
-Represents an individual task card.
-
-Fields:
-
-id (Primary Key)
-
-title
-
-description
-
-position (Used for ordering inside list)
-
-listId (Foreign Key → List.id)
-
-createdAt
+### ✅ Task
+- id (PK)
+- title
+- description
+- position (ordering inside list)
+- listId (FK → List.id)
+- createdAt
 
 Relationships:
+- One task → many assignments
 
-One Task → Many TaskAssignments
+---
 
-Belongs to one List
-
-5️⃣ TaskAssignment (Many-to-Many)
-
-Enables multiple users to be assigned to a task.
-
-Fields:
-
-id (Primary Key)
-
-taskId (Foreign Key → Task.id)
-
-userId (Foreign Key → User.id)
+### 👥 TaskAssignment (Many-to-Many)
+- id (PK)
+- taskId (FK → Task.id)
+- userId (FK → User.id)
 
 Constraint:
+- UNIQUE(taskId, userId)
 
-UNIQUE(taskId, userId) prevents duplicate assignments.
+Enables multiple users per task.
 
-Relationships:
+---
 
-Many Users ↔ Many Tasks
+### 📡 Activity
+- id (PK)
+- boardId (FK → Board.id)
+- userId (FK → User.id)
+- action (string)
+- metadata (JSON)
+- createdAt
 
-6️⃣ Activity
+Used for audit trail and real-time activity feed.
 
-Tracks actions performed within a board.
+---
 
-Fields:
+## 🔗 Relationship Summary
 
-id (Primary Key)
+- One User owns many Boards  
+- One Board contains many Lists  
+- One List contains many Tasks  
+- Tasks can have multiple assigned Users  
+- Boards maintain an Activity log  
 
-boardId (Foreign Key → Board.id)
+---
 
-userId (Foreign Key → User.id)
+## 🚀 Schema Strength
 
-action (String identifier)
+The schema ensures:
 
-metadata (JSON)
-
-createdAt
-
-Purpose:
-
-Audit trail
-
-Real-time activity feed
-
-Historical tracking
-
-🔗 Relationship Summary
-
-One User owns many Boards.
-
-One Board contains many Lists.
-
-One List contains many Tasks.
-
-Tasks can have multiple assigned Users.
-
-Boards maintain an Activity log of actions.
-
-This schema ensures:
-
-Clear hierarchical structure
-
-Ordered task positioning
-
-Multi-user task collaboration
-
-Activity tracking
-
-Strict relational integrity
+- Clear hierarchical structure  
+- Ordered task positioning  
+- Multi-user collaboration  
+- Activity tracking  
+- Strong relational integrity  
