@@ -1,28 +1,69 @@
-import {Server} from "socket.io";
+import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
+import prisma from "../config/prisma";
+
 let io: Server;
 
-export const initSocket = (server:any) => {
-    io= new Server(server, {
-        cors: {origin: "*"},
+export const initSocket = (server: any) => {
+  io = new Server(server, {
+    cors: { origin: "*" },
+  });
+
+  
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+
+    if (!token) {
+      return next(new Error("Unauthorized: No token"));
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+        userId: string;
+      };
+
+     
+      (socket as any).userId = decoded.userId;
+
+      next();
+    } catch (err) {
+      next(new Error("Unauthorized: Invalid token"));
+    }
+  });
+
+  io.on("connection", (socket) => {
+    console.log("Authenticated user connected:", socket.id);
+
+    socket.on("join_board", async (boardId: string) => {
+    const userId = (socket as any).userId;
+
+    const board = await prisma.board.findUnique({
+        where: { id: boardId },
     });
 
-    io.on("connection", (socket)=> {
-        console.log("User Connected:", socket.id);
+    if (!board) {
+        console.log("Board not found");
+        return;
+    }
 
-        socket.on("join_board",(boardId: string)=> {
-            socket.join(boardId);
-            console.log(`Socket ${socket.id} joined board ${boardId}`);
-        });
+    if (board.ownerId !== userId) {
+        console.log("Unauthorized board access attempt");
+        return;
+    }
 
-        socket.on("disconnect", ()=> {
-            console.log("User Disconnected", socket.id);
-        });
+    socket.join(boardId);
+    console.log(`User ${userId} joined board ${boardId}`);
     });
 
-    return io;
-}; 
+    socket.on("disconnect", () => {
+      console.log("User disconnected:", socket.id);
+    });
+  });
 
-export const getIo = () => {
-    if(!io) throw new Error("Socket.io not initialized");
-    return io;
-}
+  return io;
+};
+
+export const getIO = () => {
+  if (!io) throw new Error("Socket.io not initialized");
+  return io;
+};

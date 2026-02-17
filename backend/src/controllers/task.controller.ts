@@ -46,6 +46,9 @@ export const createTask = async (req: Request, res: Response) => {
       },
     });
 
+    const io = getIO();
+    io.to(list.boardId).emit("task_created", task);
+
     return res.status(201).json(task);
   } catch (error) {
     console.error(error);
@@ -80,6 +83,13 @@ export const getTasksByList = async (req: Request<{ listId: string }>, res: Resp
     const tasks = await prisma.task.findMany({
       where: { listId },
       orderBy: { position: "asc" },
+      include: {
+        assignments: {
+        include: {
+            user: true,
+        },
+        },
+    },
     });
 
     return res.status(200).json(tasks);
@@ -168,6 +178,12 @@ export const moveTaskWithinList = async (
       });
     });
 
+    const io = getIO();
+    io.to(task.list.boardId).emit("task_moved", {
+    taskId,
+    newPosition,
+    });
+
     return res.status(200).json({ message: "Task moved successfully" });
   } catch (error) {
     console.error(error);
@@ -250,6 +266,14 @@ export const moveTaskAcrossLists = async (
       });
     });
 
+    const io = getIO();
+    io.to(task.list.boardId).emit("task_moved_across", {
+    taskId,
+    newListId,
+    newPosition,
+    });
+
+
     return res.status(200).json({ message: "Task moved across lists" });
   } catch (error) {
     console.error(error);
@@ -308,7 +332,125 @@ export const deleteTask = async (
       });
     });
 
+    const io = getIO();
+    io.to(task.list.boardId).emit("task_deleted", {
+    taskId,
+    });
+
     return res.status(200).json({ message: "Task deleted successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const assignUserToTask = async (
+  req: Request<{ taskId: string }>,
+  res: Response
+) => {
+  try {
+    const { taskId } = req.params;
+    const { userId } = req.body;
+    const currentUserId = (req as any).userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    // 1️⃣ Validate task + ownership
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        list: {
+          include: { board: true },
+        },
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    if (task.list.board.ownerId !== currentUserId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // 2️⃣ Validate user exists
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 3️⃣ Create assignment
+    const assignment = await prisma.taskAssignment.create({
+      data: {
+        taskId,
+        userId,
+      },
+    });
+
+    // 🔥 Emit real-time event
+    const io = getIO();
+    io.to(task.list.boardId).emit("task_assigned", {
+      taskId,
+      userId,
+    });
+
+    return res.status(201).json(assignment);
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(400).json({ message: "User already assigned" });
+    }
+
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+export const unassignUserFromTask = async (
+  req: Request<{ taskId: string; userId: string }>,
+  res: Response
+) => {
+  try {
+    const { taskId, userId } = req.params;
+    const currentUserId = (req as any).userId;
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        list: {
+          include: { board: true },
+        },
+      },
+    });
+
+    if (!task) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    if (task.list.board.ownerId !== currentUserId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    await prisma.taskAssignment.delete({
+      where: {
+        taskId_userId: {
+          taskId,
+          userId,
+        },
+      },
+    });
+
+    const io = getIO();
+    io.to(task.list.boardId).emit("task_unassigned", {
+      taskId,
+      userId,
+    });
+
+    return res.status(200).json({ message: "User unassigned" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Internal Server Error" });

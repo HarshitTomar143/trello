@@ -3,17 +3,19 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-  
+
 model User {
   id        String   @id @default(uuid())
   name      String
   email     String   @unique
   password  String
   createdAt DateTime @default(now())
-  boards    Board[]
+
+  boards      Board[]
+  assignments TaskAssignment[]
 }
 
 model Board {
@@ -22,22 +24,34 @@ model Board {
   ownerId   String
   createdAt DateTime @default(now())
 
-  owner     User     @relation(fields: [ownerId], references: [id])
-  lists     List[]
+  owner User   @relation(fields: [ownerId], references: [id])
+  lists List[]
 }
 
 model List {
-  id        String   @id @default(uuid())
-  title     String
-  position  Int
-  boardId   String
+  id       String @id @default(uuid())
+  title    String
+  position Int
+  boardId  String
 
-  board     Board    @relation(fields: [boardId], references: [id])
-  tasks     Task[]
+  board Board  @relation(fields: [boardId], references: [id])
+  tasks Task[]
 
   @@index([boardId])
 }
 
+model TaskAssignment {
+  id     String @id @default(uuid())
+  taskId String
+  userId String
+
+  task Task @relation(fields: [taskId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([taskId])
+  @@index([userId])
+}
 
 model Task {
   id          String   @id @default(uuid())
@@ -45,11 +59,19 @@ model Task {
   description String?
   position    Int
   listId      String
-  assignedTo  String?
   createdAt   DateTime @default(now())
 
-  list        List     @relation(fields: [listId], references: [id])
+  list        List             @relation(fields: [listId], references: [id])
+  assignments TaskAssignment[]
 
   @@index([listId])
 }
 
+model Activity {
+  id        String   @id @default(uuid())
+  boardId   String
+  userId    String
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+}
