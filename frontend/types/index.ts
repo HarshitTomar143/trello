@@ -18,4 +18,26 @@ export interface Task {
   position: number;
   listId: string;
   createdAt: string;
+  assignments?: {
+    user: {
+      id: string;
+      name: string | null;
+      email: string;
+    };
+  }[];
+}
+
+export interface Activity {
+  id: string;
+  boardId: string;
+  userId: string;
+  action: string;
+  metadata?: any;
+  createdAt: string;
+}
+
+export interface User {
+  id: string;
+  name: string | null;
+  email: string;
 }

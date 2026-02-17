@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Board } from "@/types";
 import { useRouter } from "next/navigation";
+import AuthGuard from "@/components/AuthGuard";
 
 export default function BoardsPage() {
   const [boards, setBoards] = useState<Board[]>([]);
@@ -26,35 +27,37 @@ export default function BoardsPage() {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">My Boards</h1>
+    <AuthGuard>
+    <div>
+      <h1 className="heading mb-4">My Boards</h1>
 
       <div className="flex gap-2 mb-6">
         <input
-          className="border p-2"
+          className="input"
           placeholder="New board title"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
         <button
-          className="bg-black text-white px-4"
+          className="btn btn-primary"
           onClick={createBoard}
         >
           Create
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {boards.map((board) => (
           <div
             key={board.id}
             onClick={() => router.push(`/boards/${board.id}`)}
-            className="border p-4 cursor-pointer hover:bg-gray-100"
+            className="card p-4 cursor-pointer hover:bg-gray-50"
           >
             {board.title}
           </div>
         ))}
       </div>
     </div>
+    </AuthGuard>
   );
 }

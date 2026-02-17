@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
+import { LogoutButton } from "../components/LogoutButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,7 +29,16 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <header className="w-full border-b bg-white">
+          <div className="container py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Link href="/boards" className="btn">Boards</Link>
+              <Link href="/tasks" className="btn">Tasks</Link>
+            </div>
+            <LogoutButton />
+          </div>
+        </header>
+        <main className="container py-6">{children}</main>
       </body>
     </html>
   );

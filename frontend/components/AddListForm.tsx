@@ -17,16 +17,16 @@ export default function AddListForm({ onCreate }: Props) {
   };
 
   return (
-    <div className="min-w-[300px] bg-gray-200 p-4 rounded-lg shadow">
+    <div className="min-w-[300px] card p-4">
       <input
-        className="w-full border p-2 rounded mb-2"
+        className="input mb-2"
         placeholder="New list..."
         value={title}
         onChange={(e) => setTitle(e.target.value)}
       />
 
       <button
-        className="w-full bg-black text-white p-2 rounded"
+        className="btn btn-primary w-full"
         onClick={handleCreate}
       >
         Add List

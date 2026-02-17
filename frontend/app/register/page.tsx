@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const handleLogin = async () => {
     try {
       const res = await api.post("/api/auth/register", {
+        name,
         email,
         password,
       });
@@ -24,24 +26,35 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="w-80 space-y-4">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="w-80 space-y-4 card p-4">
         <input
-          className="w-full border p-2"
+          className="input"
+          placeholder="Name"
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          className="input"
           placeholder="Email"
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
-          className="w-full border p-2"
+          className="input"
           placeholder="Password"
           type="password"
           onChange={(e) => setPassword(e.target.value)}
         />
         <button
-          className="w-full bg-black text-white p-2"
+          className="btn btn-primary w-full"
           onClick={handleLogin}
         >
-          Login
+          Register
+        </button>
+        <button
+          className="btn w-full"
+          onClick={() => router.push("/login")}
+        >
+          Back to Login
         </button>
       </div>
     </div>

@@ -24,24 +24,30 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="w-80 space-y-4">
+    <div className="flex min-h-[60vh] items-center justify-center">
+      <div className="w-80 space-y-4 card p-4">
         <input
-          className="w-full border p-2"
+          className="input"
           placeholder="Email"
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
-          className="w-full border p-2"
+          className="input"
           placeholder="Password"
           type="password"
           onChange={(e) => setPassword(e.target.value)}
         />
         <button
-          className="w-full bg-black text-white p-2"
+          className="btn btn-primary w-full"
           onClick={handleLogin}
         >
           Login
+        </button>
+        <button
+          className="btn w-full"
+          onClick={() => router.push("/register")}
+        >
+          Register
         </button>
       </div>
     </div>

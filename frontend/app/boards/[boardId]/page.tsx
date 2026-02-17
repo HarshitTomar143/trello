@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
-import { List, Task } from "@/types";
+import { Activity, List, Task, User } from "@/types";
 import { connectSocket, getSocket } from "@/lib/socket";
 import AddTaskForm from "@/components/AddTaskForm";
 import AddListForm from "@/components/AddListForm";
 import SortableTask from "@/components/SortableTask";
+import AuthGuard from "@/components/AuthGuard";
+import ActivityFeed from "@/components/ActivityFeed";
+import ListColumn from "@/components/ListColumn";
 
 import {
   DndContext,
@@ -16,6 +19,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
 } from "@dnd-kit/core";
 
 import {
@@ -28,6 +33,10 @@ export default function BoardPage() {
   const { boardId } = useParams();
   const [lists, setLists] = useState<List[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const listsRef = useRef<List[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -35,8 +44,8 @@ export default function BoardPage() {
     if (!boardId) return;
 
     fetchLists();
-    fetchTasks();
     setupSocket();
+    fetchUsers();
 
     return () => {
       const socket = getSocket();
@@ -46,12 +55,24 @@ export default function BoardPage() {
 
   const fetchLists = async () => {
     const res = await api.get(`/api/lists/${boardId}`);
-    setLists(res.data);
+    const fetchedLists: List[] = res.data;
+    setLists(fetchedLists);
+    listsRef.current = fetchedLists;
+    await fetchTasksForLists(fetchedLists);
   };
 
-  const fetchTasks = async () => {
-    const res = await api.get(`/api/tasks?boardId=${boardId}&limit=100`);
-    setTasks(res.data.data);
+  const fetchTasksForLists = async (listsArg: List[]) => {
+    const requests = listsArg.map((l) => api.get(`/api/tasks/${l.id}`));
+    const results = await Promise.all(requests);
+    const combined = results.flatMap((r) => r.data as Task[]);
+    setTasks(combined);
+  };
+  const fetchUsers = async () => {
+    const res = await api.get("/api/auth/users");
+    setUsers(res.data);
+  };
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveTaskId(String(event.active.id));
   };
 
   const createTask = async (listId: string, title: string) => {
@@ -59,7 +80,12 @@ export default function BoardPage() {
   };
 
   const deleteTask = async (taskId: string) => {
-    await api.delete(`/api/tasks/${taskId}`);
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    try {
+      await api.delete(`/api/tasks/${taskId}`);
+    } catch {
+      await fetchTasksForLists(listsRef.current);
+    }
   };
 
   const createList = async (title: string) => {
@@ -70,36 +96,44 @@ export default function BoardPage() {
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    setActiveTaskId(null);
     if (!over || active.id === over.id) return;
 
     const activeTask = tasks.find((t) => t.id === active.id);
     const overTask = tasks.find((t) => t.id === over.id);
 
-    if (!activeTask || !overTask) return;
+    if (!activeTask) return;
 
-    // SAME LIST ONLY (Phase 1)
-    if (activeTask.listId !== overTask.listId) return;
+    if (overTask && activeTask.listId === overTask.listId) {
+      const listTasks = tasks
+        .filter((t) => t.listId === activeTask.listId)
+        .sort((a, b) => a.position - b.position);
 
-    const listTasks = tasks
-      .filter((t) => t.listId === activeTask.listId)
-      .sort((a, b) => a.position - b.position);
+      const oldIndex = listTasks.findIndex((t) => t.id === active.id);
+      const newIndex = listTasks.findIndex((t) => t.id === over.id);
 
-    const oldIndex = listTasks.findIndex((t) => t.id === active.id);
-    const newIndex = listTasks.findIndex((t) => t.id === over.id);
+      const reordered = arrayMove(listTasks, oldIndex, newIndex);
 
-    const reordered = arrayMove(listTasks, oldIndex, newIndex);
+      setTasks((prev) =>
+        prev.map((t) => {
+          const updated = reordered.find((r) => r.id === t.id);
+          return updated ? { ...t, position: reordered.indexOf(updated) } : t;
+        })
+      );
 
-    // Optimistic UI update
-    setTasks((prev) =>
-      prev.map((t) => {
-        const updated = reordered.find((r) => r.id === t.id);
-        return updated
-          ? { ...t, position: reordered.indexOf(updated) }
-          : t;
-      })
-    );
+      await api.patch(`/api/tasks/${active.id}/move`, {
+        newPosition: newIndex,
+      });
+      return;
+    }
 
-    await api.patch(`/api/tasks/${active.id}/move`, {
+    const overIsList = listsRef.current.some((l) => l.id === String(over.id));
+    const targetListId = overIsList ? String(over.id) : overTask?.listId || "";
+    if (!targetListId) return;
+    const targetTasks = tasks.filter((t) => t.listId === targetListId).sort((a, b) => a.position - b.position);
+    const newIndex = overIsList ? targetTasks.length : targetTasks.findIndex((t) => t.id === over.id);
+    await api.patch(`/api/tasks/${active.id}/move-across`, {
+      newListId: targetListId,
       newPosition: newIndex,
     });
   };
@@ -120,29 +154,44 @@ export default function BoardPage() {
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     });
 
-    
+    socket.on("task_moved", async () => {
+      await fetchTasksForLists(listsRef.current);
+    });
+    socket.on("task_moved_across", async () => {
+      await fetchTasksForLists(listsRef.current);
+    });
+    socket.on("task_assigned", async () => {
+      await fetchTasksForLists(listsRef.current);
+    });
+    socket.on("task_unassigned", async () => {
+      await fetchTasksForLists(listsRef.current);
+    });
+
+    socket.on("activity_created", (activity: Activity) => {
+      setActivities((prev) => [activity, ...prev].slice(0, 100));
+    });
   };
 
   return (
-    <div className="h-screen bg-gray-200 p-6 flex flex-col">
-      <h1 className="text-2xl font-bold mb-6">Board</h1>
+    <AuthGuard>
+    <div className="flex flex-col">
+      <h1 className="heading mb-4">Board</h1>
 
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex gap-6 overflow-x-auto flex-1">
+        <div className="flex gap-6 flex-1">
+          <div className="flex gap-4 overflow-x-auto flex-1">
           {lists.map((list) => {
             const listTasks = tasks
               .filter((task) => task.listId === list.id)
               .sort((a, b) => a.position - b.position);
 
             return (
-              <div
-                key={list.id}
-                className="min-w-[300px] bg-gray-100 p-4 rounded-lg shadow flex flex-col"
-              >
+              <ListColumn key={list.id} id={list.id} title={list.title}>
                 <h2 className="font-semibold text-lg mb-4">
                   {list.title}
                 </h2>
@@ -166,13 +215,25 @@ export default function BoardPage() {
                   listId={list.id}
                   onCreate={createTask}
                 />
-              </div>
+              </ListColumn>
             );
           })}
 
           <AddListForm onCreate={createList} />
+          </div>
+          <div className="hidden lg:block w-80 shrink-0">
+            <ActivityFeed activities={activities} users={users} lists={lists} />
+          </div>
         </div>
+        <DragOverlay>
+          {activeTaskId ? (
+            <div className="card p-3 opacity-80">
+              {tasks.find((t) => t.id === activeTaskId)?.title}
+            </div>
+          ) : null}
+        </DragOverlay>
       </DndContext>
     </div>
+    </AuthGuard>
   );
 }
