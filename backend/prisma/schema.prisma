@@ -16,6 +16,8 @@ model User {
 
   boards      Board[]
   assignments TaskAssignment[]
+
+  activities Activity[]
 }
 
 model Board {
@@ -24,9 +26,13 @@ model Board {
   ownerId   String
   createdAt DateTime @default(now())
 
-  owner User   @relation(fields: [ownerId], references: [id])
-  lists List[]
+  owner     User     @relation(fields: [ownerId], references: [id])
+  lists     List[]
+  activities Activity[]
+
+  @@index([ownerId])
 }
+
 
 model List {
   id       String @id @default(uuid())
@@ -74,4 +80,10 @@ model Activity {
   action    String
   metadata  Json?
   createdAt DateTime @default(now())
+
+  board     Board    @relation(fields: [boardId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([boardId])
+  @@index([userId])
 }

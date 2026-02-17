@@ -6,6 +6,7 @@ import { moveTaskWithinList } from "../controllers/task.controller";
 import { moveTaskAcrossLists } from "../controllers/task.controller";
 import { deleteTask } from "../controllers/task.controller";
 import {assignUserToTask, unassignUserFromTask,} from "../controllers/task.controller";
+import { getTasksPaginated } from "../controllers/task.controller";
 
 const router = Router();
 
@@ -16,5 +17,6 @@ router.patch("/:taskId/move-across", authenticate, moveTaskAcrossLists);
 router.delete("/:taskId", authenticate, deleteTask);
 router.post("/:taskId/assign", authenticate, assignUserToTask);
 router.delete("/:taskId/unassign/:userId", authenticate, unassignUserFromTask);
+router.get("/", authenticate, getTasksPaginated);
 
 export default router;

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../config/prisma";
 import { getIO } from "../socket/io";
+import { logActivity } from "../services/activity.services";
 
 export const createTask = async (req: Request, res: Response) => {
   try {
@@ -46,7 +47,19 @@ export const createTask = async (req: Request, res: Response) => {
       },
     });
 
+    if (!task) {
+    return res.status(404).json({ message: "Task not found" });
+    }
+
+    const activity = await logActivity(
+    list.boardId,
+    userId,
+    "TASK_CREATED",
+    { taskId: task.id }
+    );
+
     const io = getIO();
+    io.to(list.boardId).emit("activity_created", activity);
     io.to(list.boardId).emit("task_created", task);
 
     return res.status(201).json(task);
@@ -90,7 +103,12 @@ export const getTasksByList = async (req: Request<{ listId: string }>, res: Resp
         },
         },
     },
-    });
+    }
+
+    
+
+);
+
 
     return res.status(200).json(tasks);
   } catch (error) {
@@ -123,6 +141,17 @@ export const moveTaskWithinList = async (
         },
       },
     });
+
+    if (!task) {
+    return res.status(404).json({ message: "Task not found" });
+    }
+
+    const activity = await logActivity(
+    task.list.boardId,
+    userId,
+    "TASK_MOVED",
+    { taskId, newPosition }
+    );
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
@@ -179,6 +208,7 @@ export const moveTaskWithinList = async (
     });
 
     const io = getIO();
+    io.to(task.list.boardId).emit("activity_created", activity);
     io.to(task.list.boardId).emit("task_moved", {
     taskId,
     newPosition,
@@ -217,6 +247,17 @@ export const moveTaskAcrossLists = async (
         },
       },
     });
+
+    if (!task) {
+    return res.status(404).json({ message: "Task not found" });
+    }
+
+    const activity = await logActivity(
+    task.list.boardId,
+    userId,
+    "TASK_MOVED_ACROSS",
+    { taskId, newListId, newPosition }
+    );
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
@@ -267,6 +308,7 @@ export const moveTaskAcrossLists = async (
     });
 
     const io = getIO();
+    io.to(task.list.boardId).emit("activity_created", activity);
     io.to(task.list.boardId).emit("task_moved_across", {
     taskId,
     newListId,
@@ -302,6 +344,17 @@ export const deleteTask = async (
     });
 
     if (!task) {
+    return res.status(404).json({ message: "Task not found" });
+    }
+
+    const activity = await logActivity(
+    task.list.boardId,
+    userId,
+    "TASK_DELETED",
+    { taskId }
+    );
+
+    if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
 
@@ -333,6 +386,7 @@ export const deleteTask = async (
     });
 
     const io = getIO();
+    io.to(task.list.boardId).emit("activity_created", activity);
     io.to(task.list.boardId).emit("task_deleted", {
     taskId,
     });
@@ -368,6 +422,17 @@ export const assignUserToTask = async (
     });
 
     if (!task) {
+  return res.status(404).json({ message: "Task not found" });
+}
+
+    const activity = await logActivity(
+    task.list.boardId,
+    currentUserId,
+    "TASK_ASSIGNED",
+    { taskId, assignedUserId: userId }
+    );
+
+    if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
 
@@ -394,6 +459,7 @@ export const assignUserToTask = async (
 
     // 🔥 Emit real-time event
     const io = getIO();
+    io.to(task.list.boardId).emit("activity_created", activity);
     io.to(task.list.boardId).emit("task_assigned", {
       taskId,
       userId,
@@ -428,6 +494,19 @@ export const unassignUserFromTask = async (
     });
 
     if (!task) {
+  return res.status(404).json({ message: "Task not found" });
+}
+
+    const activity = await logActivity(
+    task.list.boardId,
+    currentUserId,
+    "TASK_UNASSIGNED",
+    { taskId, unassignedUserId: userId }
+    );
+
+
+
+    if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
 
@@ -445,6 +524,7 @@ export const unassignUserFromTask = async (
     });
 
     const io = getIO();
+    io.to(task.list.boardId).emit("activity_created", activity);
     io.to(task.list.boardId).emit("task_unassigned", {
       taskId,
       userId,
@@ -456,3 +536,80 @@ export const unassignUserFromTask = async (
     return res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+export const getTasksPaginated = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const userId = (req as any).userId;
+
+    const { search = "", page = "1", limit = "10", listId } = req.query;
+
+    const pageNumber = parseInt(page as string);
+    const limitNumber = parseInt(limit as string);
+
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // Optional list filter
+    const whereCondition: any = {
+      ...(listId && { listId }),
+      ...(search && {
+        OR: [
+          {
+            title: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+          {
+            description: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+        ],
+      }),
+    };
+
+    const [tasks, total] = await prisma.$transaction([
+      prisma.task.findMany({
+        where: whereCondition,
+        skip,
+        take: limitNumber,
+        orderBy: { createdAt: "desc" },
+        include: {
+          assignments: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+          list: {
+            include: {
+              board: true,
+            },
+          },
+        },
+      }),
+      prisma.task.count({
+        where: whereCondition,
+      }),
+    ]);
+
+    return res.status(200).json({
+      data: tasks,
+      pagination: {
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: Math.ceil(total / limitNumber),
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
