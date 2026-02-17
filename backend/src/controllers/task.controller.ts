@@ -387,9 +387,9 @@ export const deleteTask = async (
 
     const io = getIO();
     io.to(task.list.boardId).emit("activity_created", activity);
-    io.to(task.list.boardId).emit("task_deleted", {
-    taskId,
-    });
+    io.to(task.list.boardId).emit("task_deleted", 
+      taskId,
+    );
 
     return res.status(200).json({ message: "Task deleted successfully" });
   } catch (error) {
